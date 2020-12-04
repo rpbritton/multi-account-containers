@@ -5,7 +5,30 @@ const NEW_TAB_PAGES = new Set([
   "about:newtab",
   "about:home",
   "about:blank"
-])
+]);
+
+function replaceTab(tab, cookieStoreId) {
+  const replacementTab = {
+    cookieStoreId: cookieStoreId,
+    windowId: tab.windowId,
+    index: tab.index + 1
+  };
+  if (NEW_TAB_PAGES.has(tab.url)) {
+    // weird bug with links in about:preferences, etc.
+    try {
+      new URL("https://" + tab.title);
+      replacementTab.url = "https://" + tab.title;
+    } catch (_) {
+      // do nothing
+    }
+  } else {
+    replacementTab.url = tab.url;
+  }
+  browser.tabs.create(replacementTab).then(() => {
+    browser.tabs.remove(tab.id);
+  }).catch();
+}
+
 const backgroundLogic = {
   NEW_TAB_PAGES: NEW_TAB_PAGES,
   NUMBER_OF_KEYBOARD_SHORTCUTS: 10,
@@ -21,52 +44,29 @@ const backgroundLogic = {
         } else if (command === "re" + key) {
           browser.tabs.query({ active: true, windowId: browser.windows.WINDOW_ID_CURRENT })
             .then(tabs => {
-              tab = {
-                cookieStoreId: cookieStoreId,
-                windowId: tabs[0].windowId,
-                index: tabs[0].index + 1
-              }
-              if (!NEW_TAB_PAGES.has(tabs[0].url)) {
-                tab.url = tabs[0].url
-              }
-              browser.tabs.create(tab).then(() => {
-                browser.tabs.remove(tabs[0].id)
-              });
-            })
+              replaceTab(tabs[0], cookieStoreId);
+            }).catch();
         }
       }
     });
 
     // open new tabs in the same container
-    lastCookieStoreId = DEFAULT_COOKIE_STORE_ID;
+    let lastCookieStoreId = DEFAULT_COOKIE_STORE_ID;
     browser.tabs.query({ active: true, windowId: browser.windows.WINDOW_ID_CURRENT })
       .then(tabs => {
         lastCookieStoreId = tabs[0].cookieStoreId;
-      })
+      }).catch();
     browser.tabs.onCreated.addListener(tab => {
-      if (tab.cookieStoreId != DEFAULT_COOKIE_STORE_ID) {
+      if (tab.cookieStoreId !== DEFAULT_COOKIE_STORE_ID || lastCookieStoreId === DEFAULT_COOKIE_STORE_ID) {
         return;
       }
-      if (lastCookieStoreId == DEFAULT_COOKIE_STORE_ID) {
-        return;
-      };
-      replacementTab = {
-        cookieStoreId: lastCookieStoreId,
-        windowId: tab.windowId,
-        index: tab.index + 1
-      }
-      if (!NEW_TAB_PAGES.has(tab.url)) {
-        replacementTab.url = tab.url
-      }
-      browser.tabs.create(replacementTab).then(() => {
-        browser.tabs.remove(tab.id)
-      });
+      replaceTab(tab, lastCookieStoreId);
     });
     browser.tabs.onActivated.addListener(event => {
       browser.tabs.get(event.tabId)
         .then(tab => {
           lastCookieStoreId = tab.cookieStoreId;
-        })
+        }).catch();
     });
   },
 
