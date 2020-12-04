@@ -1,10 +1,18 @@
+# Changes in this fork
+
+* New tabs open in the same container as the previous tab.
+   * This is achievable with other extensions like [Conex](https://addons.mozilla.org/en-US/firefox/addon/conex/), but this also works when creating new windows.
+* Reopen the current window in another container using hotkeys.
+   * Similar to `Ctrl+Shift+[1-9]`, but `Ctrl+Atl+[1-9]`.
+   * This can be achieved with an extension like [Easy Container Shortcuts](https://addons.mozilla.org/en-US/firefox/addon/easy-container-shortcuts/), but this works on new tab pages.
+
 # Multi-Account Containers
 
 The Firefox Multi-Account Containers extension lets you carve out a separate box for each of your online lives – no more opening a different browser just to check your work email! [Learn More Here](https://blog.mozilla.org/firefox/introducing-firefox-multi-account-containers/)
 
 [Available on addons.mozilla.org](https://addons.mozilla.org/en-GB/firefox/addon/multi-account-containers/)
 
-For more info, see: 
+For more info, see:
 
 * [Test Pilot Product Hypothesis Document](https://docs.google.com/document/d/1WQdHTVXROk7dYkSFluc6_hS44tqZjIrG9I-uPyzevE8/edit#)
 * [Shield Product Hypothesis Document](https://docs.google.com/document/d/1vMD-fH_5hGDDqNvpRZk12_RhCN2WAe4_yaBamaNdtik/edit#)
@@ -24,9 +32,9 @@ For more info, see:
 ### Testing
 `npm run test`
 
-or 
+or
 
-`npm run lint` 
+`npm run lint`
 
 for just the linter
 

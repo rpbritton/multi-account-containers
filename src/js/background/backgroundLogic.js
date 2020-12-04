@@ -1,23 +1,72 @@
 const DEFAULT_TAB = "about:newtab";
+const DEFAULT_COOKIE_STORE_ID = "firefox-default";
+const NEW_TAB_PAGES = new Set([
+  "about:startpage",
+  "about:newtab",
+  "about:home",
+  "about:blank"
+])
 const backgroundLogic = {
-  NEW_TAB_PAGES: new Set([
-    "about:startpage",
-    "about:newtab",
-    "about:home",
-    "about:blank"
-  ]),
+  NEW_TAB_PAGES: NEW_TAB_PAGES,
   NUMBER_OF_KEYBOARD_SHORTCUTS: 10,
   unhideQueue: [],
   init() {
     browser.commands.onCommand.addListener(function (command) {
-      for (let i=0; i < backgroundLogic.NUMBER_OF_KEYBOARD_SHORTCUTS; i++) {
+      for (let i = 0; i < backgroundLogic.NUMBER_OF_KEYBOARD_SHORTCUTS; i++) {
         const key = "open_container_" + i;
         const cookieStoreId = identityState.keyboardShortcut[key];
+        if (cookieStoreId === "none") continue;
         if (command === key) {
-          if (cookieStoreId === "none") return;
-          browser.tabs.create({cookieStoreId});
+          browser.tabs.create({ cookieStoreId });
+        } else if (command === "re" + key) {
+          browser.tabs.query({ active: true, windowId: browser.windows.WINDOW_ID_CURRENT })
+            .then(tabs => {
+              tab = {
+                cookieStoreId: cookieStoreId,
+                windowId: tabs[0].windowId,
+                index: tabs[0].index + 1
+              }
+              if (!NEW_TAB_PAGES.has(tabs[0].url)) {
+                tab.url = tabs[0].url
+              }
+              browser.tabs.create(tab).then(() => {
+                browser.tabs.remove(tabs[0].id)
+              });
+            })
         }
       }
+    });
+
+    // open new tabs in the same container
+    lastCookieStoreId = DEFAULT_COOKIE_STORE_ID;
+    browser.tabs.query({ active: true, windowId: browser.windows.WINDOW_ID_CURRENT })
+      .then(tabs => {
+        lastCookieStoreId = tabs[0].cookieStoreId;
+      })
+    browser.tabs.onCreated.addListener(tab => {
+      if (tab.cookieStoreId != DEFAULT_COOKIE_STORE_ID) {
+        return;
+      }
+      if (lastCookieStoreId == DEFAULT_COOKIE_STORE_ID) {
+        return;
+      };
+      replacementTab = {
+        cookieStoreId: lastCookieStoreId,
+        windowId: tab.windowId,
+        index: tab.index + 1
+      }
+      if (!NEW_TAB_PAGES.has(tab.url)) {
+        replacementTab.url = tab.url
+      }
+      browser.tabs.create(replacementTab).then(() => {
+        browser.tabs.remove(tab.id)
+      });
+    });
+    browser.tabs.onActivated.addListener(event => {
+      browser.tabs.get(event.tabId)
+        .then(tab => {
+          lastCookieStoreId = tab.cookieStoreId;
+        })
     });
   },
 
@@ -45,7 +94,7 @@ const backgroundLogic = {
       await browser.contextualIdentities.remove(this.cookieStoreId(userContextId));
     }
     assignManager.deleteContainer(userContextId);
-    return {done: true, userContextId};
+    return { done: true, userContextId };
   },
 
   async createOrUpdateContainer(options) {
@@ -92,8 +141,8 @@ const backgroundLogic = {
     const protocol = new URL(url).protocol;
     // We can't open these we just have to throw them away
     if (protocol === "about:"
-        || protocol === "chrome:"
-        || protocol === "moz-extension:") {
+      || protocol === "chrome:"
+      || protocol === "moz-extension:") {
       return false;
     }
     return true;
@@ -143,7 +192,7 @@ const backgroundLogic = {
       if ("isIsolated" in containerState || remove) {
         delete containerState.isIsolated;
       } else {
-        containerState.isIsolated = "locked";        
+        containerState.isIsolated = "locked";
       }
       return await identityState.storageArea.set(cookieStoreId, containerState);
     } catch (error) {
@@ -165,7 +214,7 @@ const backgroundLogic = {
 
     // Nothing to do
     if (list.length === 0 &&
-        containerState.hiddenTabs.length === 0) {
+      containerState.hiddenTabs.length === 0) {
       return;
     }
     let newWindowObj;
@@ -213,7 +262,7 @@ const backgroundLogic = {
     // Let's close all the normal tab in the new window. In theory it
     // should be only the first tab, but maybe there are addons doing
     // crazy stuff.
-    const tabs = await browser.tabs.query({windowId: newWindowObj.id});
+    const tabs = await browser.tabs.query({ windowId: newWindowObj.id });
     for (let tab of tabs) { // eslint-disable-line prefer-const
       if (tab.cookieStoreId !== cookieStoreId) {
         browser.tabs.remove(tab.id);
@@ -275,7 +324,7 @@ const backgroundLogic = {
   },
 
   async _sortTabsInternal(windowObj, pinnedTabs) {
-    const tabs = await browser.tabs.query({windowId: windowObj.id});
+    const tabs = await browser.tabs.query({ windowId: windowObj.id });
     let pos = 0;
 
     // Let's collect UCIs/tabs for this window.
@@ -357,7 +406,7 @@ const backgroundLogic = {
   },
 
   cookieStoreId(userContextId) {
-    if(userContextId === 0) return "firefox-default";
+    if (userContextId === 0) return "firefox-default";
     return `firefox-container-${userContextId}`;
   }
 };
